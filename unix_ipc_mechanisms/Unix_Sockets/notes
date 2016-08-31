@@ -1,0 +1,106 @@
+# Author: Gopi Krishna Marella.
+# Date: 08/24/2016
+
+-> Socket:
+    o One of the man ways which facilitates two processes(or applications) communicate to each other in a two-way.
+    o These two entities could be two processes with in the same host(IPC) or connected via internet(work).
+    o Sockets are divided(or differentiated) based on the communication domain. There are 23 sockets defined in <sys/socket.h>, but mostly used ones are:
+        1) Unix domain sockets(IPC; processes on a single system).   sockaddr_un
+        2) Internet domain sockets(processes on different systems.   sockaddr_in
+    o Socket types based on the type of the communication properties:
+        - SOCK_STREAM: Stream socket:
+            -- reliable, sequenced and unduplicated flow of data with no record boundaries. 
+            -- If the domain is internet, it uses TCP to meet all the properties.
+        - SOCK_DGRAM: Datagram socket:
+            -- no specific order to the messages received and sent, record boundaries are preserved.
+            -- If the domain is internet, it uses UDP.
+
+-> Socket is nothing but an abstraction of underlying address space(and set of protocols).
+    o If the domain is Unix, socket is usually identified by a path(unique).
+    o If the domain is Internet, socket is identified by the local and remote IP addresses, ports.
+
+-> Client-Server model:
+    o One process acts as the server and other one as the client.
+    o Remot hosts can talk or connect to each other only when they know the socket details: address or path.
+
+Fundamental rule: Almost everything in Unix is a file!!. Sockets too!!!.
+
+Steps:
+-----------
+Server side:
+1) Create a socket descriptor:
+    int socket(int domain, int type, int protocol)
+    e.g:
+        sd = socket(AF_UNIX, SOCK_STREAM, 0);
+2) Bind the descriptor to a socket address.
+    int bind(int sd, const struct sockaddr *name, int namelen)
+    e.g:
+        struct sockaddr_un sock_addr;
+        int len;
+        sock_addr.sun_family = AF_UNIX;
+        strcpy(sock_addr.sun_path, "gopi_socket");
+        len = strlen(sock_addr.sun_path) + sizeof(sock_addr.sun_family);
+
+        bind(sd, &sock_addr, len);
+3) If socket type is SOCK_STREM:
+    listen(sd, 5);
+    5 is the maximum client connection requests that can be queued, after reaching the limit we send Connection refused to the new requests.
+4) Server make a blocking call to wait for the incoming connection requests:
+
+    struct sockaddr_un remote_client_addr;
+    int len = sizeof(struct sockaddr_un);
+    int remote_sd = accept(sd, &remote_client_addr, &len);
+
+5) If there is a connection request from a client, accept will return with a new socket descriptor with which server can send and receive the info from the client.
+
+6) Once accept is returned, we can communicate if we want by using send(), recv() or read(), write().
+
+7) We can close this connection by calling shutdown() or close()
+
+8) Go back to accept() blocking call.
+
+
+Client Side:
+1) Create a socket for communication:
+    cd = socket(AF_UNIX, SOCK_STREAM, 0);
+2) Setup remote server socket address information where the server is listening for the incoming requests:
+    struct sockaddr_un server_addr;
+    int len;
+
+    server_addr.sun_family = AF_UNIX;
+    strcpy(server_addr.sun_path, "gopi_socket");
+    len = sizeof(server_addr.sun_family) + strlen(server_addr.sun_path);
+
+3) Initiate the connection request by calling connect:
+    connect(cd, &server_addr, len)
+
+4) Connect returns positive value if the connection is successful.
+
+5) Communicate using sd, read(), write().
+
+6) Tear down the connection by calling close(), shutdown().
+
+====================================================================================
+socketpair():
+    o What if we want a communication channel between two processes but don't want to go through setting up the path,
+      calling listen, accept, connect!!.
+    o There is a system call which returns us pair of already connected sockets, path, accept, listen, connect everything is under hood.
+      We can just use these two sockets to communicate to each other.
+
+    /* Error checks are relaxed for ease of readability */
+    /* Simple program to convert upper case letter to lower case */
+    int sds[2];
+    char buff;
+
+    socketpair(AF_UNIX, SOCK_STREAM, 0, sds);
+
+    if (0 == fork()) {
+        /* Child process */
+        read(sds[1], &buf, 1);
+        buf = toupper(buf);
+        write(sds[1], buf, 1);
+    } else {
+        write(sds[0], "b", 1);
+        read(sds[0], &buf, 1);
+        wait(NULL); /* Wait for the child to exit */
+    }

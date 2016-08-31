@@ -1,0 +1,18 @@
+/* Author: Gopi Krishna Marella.
+ *  Date : 08/26/2016.
+ */
+
+Pipe:
+    o We can think of pipe as a queue where we insert data from one end and read the data from the other end.
+    o Pipe works as a queue in the sense we have a pair of file descriptors, one to write the data and the other one to read the
+      data which is being written to other end using the other file descriptor.
+    o Call to pipe returns us a pair of file descriptors. fds[2].
+    o fds[0] is used to read the data.
+    o fds[1] is used to write the data.
+
+So, how eactly we can use pipes for the IPC.
+    o We use pipe with the combination of fork().
+    o When we call fork() from a running process, a clone of the current process is created which is called child process.
+    o When a process is forked, all of its file descriptors are copied to the child process.
+    o In this way, since both the parent and child have the file descriptors, we can use fd[0] in one process(reader) and
+      fd[1] in the other process (writer).
